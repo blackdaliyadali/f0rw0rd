@@ -1,0 +1,145 @@
+#!/bin/bash
+
+source ~/.bashacker
+
+#color
+
+red='\e[1;31m%s\e[0m\n'
+green='\e[1;32m%s\e[0m\n'
+yellow='\e[1;33m%s\e[0m\n'
+blue='\e[1;34m%s\e[0m\n'
+magenta='\e[1;35m%s\e[0m\n'
+cyan='\e[1;36m%s\e[0m\n'
+##################################################################
+clear
+echo ""
+./.welcome
+echo ""
+#dir setup
+read -p  "Enter the Target name: " tn
+mkdir ~/testing/$tn
+cd ~/testing/$tn
+read -p "Enter the root Domain: " rd
+clear
+
+##################################################################
+# assetfinder
+printf "$green"   "...assetfinder loaded..."
+printf "$cyan"    "...Domain = $rd..."
+printf ""
+sleep 1
+assetfinder --subs-only $rd > assetfinder.txt
+##################################################################
+#clear
+sleep 1
+printf "$green"   "...findomain loaded..."
+printf "$cyan"    "...Domain = $rd..."
+echo ""
+findomain -t $rd -u findomain.txt
+##################################################################
+#clear
+sleep 1
+printf "$green"   "...sublist3r loaded..."
+printf "$cyan"    "...Domain = $rd..."
+echo ""
+cd
+cd gadgets/d3vnull/sources/Sublist3r/
+python sublist3r.py -d $rd -no ~/testing/$tn/sublister.txt
+cd ~/testing/$tn/
+##################################################################
+#clear
+echo ""
+sleep 1
+printf "$green"   "...subfinder loaded..."
+printf "$cyan"    "...Domain = $rd..."
+echo ""
+subfinder -d $rd -o ~/testing/$tn/subfinder.txt
+##################################################################
+#clear
+sleep 1
+echo ""
+printf "$green"   "...github testing loaded..."
+printf "$cyan"    "...Domain = $rd..."
+echo ""
+cd
+cd gadgets/d3vnull/sources/github-search/
+python3 github-subdomains.py -t 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 -d $rd | tee ~/testing/$tn/githubtesting.txt
+cd ~/testing/$tn/
+##################################################################
+#clear
+sleep 1
+echo ""
+printf "$green"   "...subbrute loaded..."
+printf "$cyan"    "...Domain = $rd..."
+echo ""
+cd
+cd gadgets/d3vnull/sources/subbrute/
+./subbrute.py $rd -o ~/testing/$tn/subrute.txt
+cd
+##################################################################
+# short all domains into one
+echo ""
+printf "$yellow"  "removing duplicates"
+cd ~/testing/$tn/
+cat *.txt | sort -u > ~/testing/$tn/devnull.txt
+cat devnull.txt | wc -l
+##################################################################
+# finding live domains
+printf "$green"   "Scanning for live domain"
+cat devnull.txt | httprobe -c 50 -t 3000 -p 443 | tee -a ~/testing/$tn/live.txt
+cat live.txt | wc -l
+##################################################################
+# grep https domains
+printf "$green"   "grep only https"
+cat live.txt | grep "https" | cut -d"/" -f3 > ~/testing/$tn/live-https.txt
+cat live-https.txt | wc -l
+##################################################################
+# aquatone
+printf "$green"   "taking screenshorts in live https domains"
+cat devnull.txt | ~/gadgets/d3vnull/sources/aquatone/aquatone -out ~/testing/$tn/aquatone
+##################################################################
+# eyewithness
+printf "$green"   "Taking screenshorts"
+#mkdir ~/testing/$tn/screenshort
+eyewitness -f ~/testing/$tn/devnull.txt -d ~/testing/$tn/screenshort/
+##################################################################
+# dir search
+printf "$green"   "dir search"
+printf "$yellow"  "if you dont want to run this press 'ctrl + c to stop"
+mkdir ~/testing/$tn/dirsearch
+cd ~/testing/$tn/
+pwd > path.txt
+ph=$(< path.txt)
+while read -r data ; do
+echo " Domain : $data"
+cd ~/testing/$tn/dirsearch
+cd ~/gadgets/d3vnull/sources/dirsearch/
+python3 dirsearch.py -u $data -e php,asp,aspx,net,js,cs,php2,php3,php4,php5,php6,php7,jsp,java,python,yaml,yml,config,conf,htaccess,htpasswd,shtml | tee ~/testing/$tm/dirsearch/$data.txt
+done < $ph/devnull.txt
+cd ~/testing/$tn/dirsearch/
+cat ~/testing/$tn/dirsearch/*.txt >> ~/testing/$tn/dirsearch.txt
+cd
+##################################################################
+# Finding params
+cd ~/testing/$tn/
+pwd > path.txt
+ph=$(< path.txt)
+printf "$green"   "Findigs parram"
+mkdir $ph/params
+cd $ph/params
+while read -r line ; do
+ echo " Domain : $line"
+python3 ~/gadgets/d3vnull/sources/P4R4M-HUNT3R/param-hunter.py --domain $line > $ph/params/$line.txt
+done < ~/testing/$tn/devnull.txt
+cat *.txt > ~/testing/$tn/params.txt
+cd output 
+cat *.txt >> ~/testing/$tn/params.txt
+rm $ph/path.txt
+cd ~/testing/$tn/
+##################################################################
+# Finding vulnerables
+printf "$green"   "Findigs xss"
+gf xss params.txt | tee xss.txt
+
+gf redirect params.txt | tee redirects.txt
+
